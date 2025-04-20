@@ -5,41 +5,27 @@ import { openai } from '@ai-sdk/openai';
 export async function POST(req: Request) {
   const { prompt }: { prompt: string } = await req.json();
 
+  console.log('Prompt:', prompt);
+
   try {
-
-    if (!process.env.GITHUB_PERSONAL_ACCESS_TOKEN){
-      return new Response("Github personal access key not set",{
-        status: 500,
-      })
-    }
     // Initialize an MCP client to connect to a `stdio` MCP server:
-    const transport = new Experimental_StdioMCPTransport({
-      command: "docker",
-      args: [
-        "run",
-        "-i",
-        "--rm",
-        "-e",
-        "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "ghcr.io/github/github-mcp-server"
-      ],
-      env: {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": process.env.GITHUB_PERSONAL_ACCESS_TOKEN
-      }
-    });
-    const stdioClient = await experimental_createMCPClient({
-      transport,
-    });
-
-    // Alternatively, you can connect to a Server-Sent Events (SSE) MCP server:
-    // const sseClient = await experimental_createMCPClient({
-    //   transport: {
-    //     type: 'sse',
-    //     url: 'https://actions.zapier.com/mcp/<key>/sse',
-    //   },
+    // const transport = new Experimental_StdioMCPTransport({
+    //   command: 'node',
+    //   args: ['src/stdio/dist/server.js'],
+    // });
+    // const stdioClient = await experimental_createMCPClient({
+    //   transport,
     // });
 
-    // // Similarly to the stdio example, you can pass in your own custom transport as long as it implements the `MCPTransport` interface:
+    // Alternatively, you can connect to a Server-Sent Events (SSE) MCP server:
+    const sseClient = await experimental_createMCPClient({
+      transport: {
+        type: 'sse',
+        url: 'https://actions.zapier.com/mcp/sk-ak-m9DWmFhmtiC8y5X14I2iOW40si/sse',
+      },
+    });
+
+    // Similarly to the stdio example, you can pass in your own custom transport as long as it implements the `MCPTransport` interface:
     // const transport = new MyCustomTransport({
     //   // ...
     // });
@@ -47,12 +33,12 @@ export async function POST(req: Request) {
     //   transport,
     // });
 
-    const toolSetOne = await stdioClient.tools();
-    // const toolSetTwo = await sseClient.tools();
+    // const toolSetOne = await stdioClient.tools();
+    const toolSetTwo = await sseClient.tools();
     // const toolSetThree = await customTransportClient.tools();
     const tools = {
-      ...toolSetOne,
-      // ...toolSetTwo,
+      // ...toolSetOne,
+      ...toolSetTwo,
       // ...toolSetThree, // note: this approach causes subsequent tool sets to override tools with the same name
     };
 
@@ -62,8 +48,8 @@ export async function POST(req: Request) {
       prompt,
       // When streaming, the client should be closed after the response is finished:
       onFinish: async () => {
-        await stdioClient.close();
-        // await sseClient.close();
+        // await stdioClient.close();
+        await sseClient.close();
         // await customTransportClient.close();
       },
     });
